@@ -25,7 +25,7 @@ The choice of materials directly impacts sales, while a correlation analysis rev
 
 <p float="left">
   <img src="sales_plots.jpg" alt="Sales by Material" width="49%">
-  <img src="correaltion_heatmap.jpg" alt="Correlation Heatmap" width="49%">
+  <img src="Correaltion_Heatmap.jpg" alt="Correlation Heatmap" width="49%">
 </p>
 
 ---
