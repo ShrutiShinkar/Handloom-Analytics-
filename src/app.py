@@ -6,7 +6,6 @@ import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.ticker import FuncFormatter
-import os # Import the os library to handle file paths
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Indian Handloom Analytics", layout="wide")
@@ -27,22 +26,11 @@ def load_and_process_data(file_path):
 
 # --- Load Model and Data ---
 try:
-    # --- BUG FIX: Constructing an absolute path to the model files ---
-    # Get the absolute path of the directory where this script is located
-    script_dir = os.path.dirname(__file__)
-    # Join the script directory with the model filenames
-    model_path = os.path.join(script_dir, 'income_model.pkl')
-    encoder_path = os.path.join(script_dir, 'income_encoder.pkl')
-    
-    model = joblib.load(model_path)
-    encoder = joblib.load(encoder_path)
-    
-    # The data file path needs to go up one level from 'src' to find 'data'
-    data_path = os.path.join(script_dir, '..', 'data', 'handloom sales.csv')
-    df_plots = load_and_process_data(data_path)
-
+    model = joblib.load('src/income_model.pkl')
+    encoder = joblib.load('src/income_encoder.pkl')
+    df_plots = load_and_process_data('data/handloom sales.csv')
 except FileNotFoundError:
-    st.error("Model or data file not found. Ensure `income_model.pkl`, `income_encoder.pkl` are in the `src` folder and `handloom sales.csv` is in the `data` folder in your GitHub repository.")
+    st.error("Model not found. Please run `python -m src.model_training` first from your terminal.")
     st.stop()
 
 # --- Main Page Layout ---
@@ -151,7 +139,12 @@ with tab2:
 # --- TAB 3: DEBT & DEMOGRAPHICS ---
 with tab3:
     st.header("Analysis of Debt, Income, and Demographics")
-    income_columns = df_plots.columns[93:101]
+    income_columns = [
+        'income_less_5000_hl_related', 'income_btw_5001_10000_hl_related',
+        'income_btw_10001_15000_hl_related', 'income_btw_15001_20000_hl_related',
+        'income_btw_20001_25000_hl_related', 'income_btw_25001_50000_hl_related',
+        'income_btw_50001_100000_hl_related', 'income_above_100000_hl_related'
+    ]
     labels = ['< ₹5k', '₹5-10k', '₹10-15k', '₹15-20k', '₹20-25k', '₹25-50k', '₹50k-1L', '> ₹1L']
 
     st.subheader("Distribution of Income Categories")
@@ -162,14 +155,15 @@ with tab3:
     st.pyplot(fig)
 
     st.subheader("Loan Distribution by Income Level")
-    all_loans_for_plot = []
-    for col in income_columns:
-        loans_in_category = df_plots.loc[df_plots[col] == 1, 'loan']
-        all_loans_for_plot.append(loans_in_category)
-        
+    # --- BUG FIX: Switched to a more robust plotting method using Seaborn ---
+    df_melted = df_plots.melt(id_vars='loan', value_vars=income_columns, var_name='income_category_col')
+    df_melted = df_melted[df_melted['value'] == 1]
+    income_map = {col: label for col, label in zip(income_columns, labels)}
+    df_melted['income_category'] = df_melted['income_category_col'].map(income_map)
+
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.boxplot(all_loans_for_plot, vert=True, patch_artist=True)
-    ax.set_xticklabels(labels, rotation=45, ha='right')
+    sns.boxplot(x='income_category', y='loan', data=df_melted, ax=ax, palette='coolwarm', order=labels, showfliers=False) # Use Seaborn's boxplot
+    plt.xticks(rotation=45, ha='right')
     ax.set_xlabel("Income Category")
     ax.set_ylabel("Loan Amount")
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
